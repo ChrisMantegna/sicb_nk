@@ -145,7 +145,7 @@ plot_organism_distribution <- function(comparison, year) {
 plot_organism_distribution(data23, 2023)
 plot_organism_distribution(data24, 2024)
 
-# Step 6: Comparison Between Years
+# 2023 - 2024 comparison
 comparison_visualization <- function(comparison) {
   # Calculate the difference between 2024 and 2023 for each organism
   comparison <- comparison %>%
