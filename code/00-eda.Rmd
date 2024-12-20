@@ -108,11 +108,12 @@ write.csv(comparison, "/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adj
 
 
 ## visualize
+## NOTE: 2024 upper-level species count feels abnormally high. must go back and double check dataframes to see what's driving that.
+## NOTE: organism distribution plots will need to be done in groups so that the barnacles and limpets/ other snails don't blow it out.
+
 ```{r}
 
-# Step 5: Exploratory Analysis - Visualizations
-
-# Zone-level organism distributions
+# total count by tidal zone
 plot_zone_distribution <- function(comparison, year) {
   data_long <- comparison %>%
     pivot_longer(-c(organism, year), names_to = "zone", values_to = "count")
@@ -127,7 +128,7 @@ plot_zone_distribution <- function(comparison, year) {
 plot_zone_distribution(data23, 2023)
 plot_zone_distribution(data24, 2024)
 
-# Organism distributions
+# organism distribution
 plot_organism_distribution <- function(comparison, year) {
   data_long <- comparison %>%
     rowwise() %>%
