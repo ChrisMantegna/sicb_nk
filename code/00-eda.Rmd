@@ -1,0 +1,133 @@
+---
+title: Yellow 2023-24 Exploratory Data Analysis
+---
+
+```{r}
+
+```
+
+# Load packages
+```{r}
+
+library(tidyverse)
+
+```
+
+# Load data
+```{r}
+
+# figure out where you are
+getwd()
+
+# add data
+data_2023 <- readxl::read_excel("path_to_your_2023_file.xlsx")
+data_2024 <- read.csv("path_to_your_2024_file.csv")
+
+```
+
+# Data cleaning
+## fix capitalization, aggregate counts across zone, pivot to usable format
+```{r}
+
+# fix column names
+colnames(data_2023) <- tolower(colnames(data_2023))
+colnames(data_2024) <- tolower(colnames(data_2024))
+
+# aggregate counts + pivot
+clean_data <- function(data, year) {
+  # Consolidate counts by summing within each zone
+  data_cleaned <- data %>%
+    group_by(zone) %>%
+    summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+    pivot_longer(-zone, names_to = "organism", values_to = "count") %>%
+    pivot_wider(names_from = "zone", values_from = "count", values_fill = 0)
+  
+  # Add year column
+  data_cleaned <- data_cleaned %>%
+    mutate(year = year)
+  
+  return(data_cleaned)
+}
+
+# create new, cleaned df's
+cleaned_2023 <- clean_data(data_2023, 2023)
+cleaned_2024 <- clean_data(data_2024, 2024)
+
+
+
+
+```
+
+# EDA
+## adjust for visualization
+```{r}
+
+# Step 4: Combine for presence/absence comparison
+presence_absence <- function(data1, data2) {
+  data_combined <- data1 %>%
+    full_join(data2, by = "organism", suffix = c("_2023", "_2024")) %>%
+    mutate(across(ends_with("2023"), ~ ifelse(. > 0, 1, 0), .names = "binary_{col}"),
+           across(ends_with("2024"), ~ ifelse(. > 0, 1, 0), .names = "binary_{col}"))
+  return(data_combined)
+}
+
+comparison <- presence_absence(cleaned_2023, cleaned_2024)
+
+
+
+```
+
+## visualize
+```{r}
+
+# Step 5: Exploratory Analysis - Visualizations
+
+# Zone-level organism distributions
+plot_zone_distribution <- function(data, year) {
+  data_long <- data %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count")
+  
+  ggplot(data_long, aes(x = zone, y = count, fill = zone)) +
+    geom_bar(stat = "identity") +
+    labs(title = paste("Total Organism Counts by Zone -", year),
+         x = "Zone", y = "Total Counts") +
+    theme_minimal()
+}
+
+plot_zone_distribution(cleaned_2023, 2023)
+plot_zone_distribution(cleaned_2024, 2024)
+
+# Organism distributions
+plot_organism_distribution <- function(data, year) {
+  data_long <- data %>%
+    rowwise() %>%
+    mutate(total_count = sum(c_across(-c(organism, year)), na.rm = TRUE))
+  
+  ggplot(data_long, aes(x = reorder(organism, total_count), y = total_count)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    labs(title = paste("Organism Distribution -", year),
+         x = "Organism", y = "Total Counts") +
+    theme_minimal()
+}
+
+plot_organism_distribution(cleaned_2023, 2023)
+plot_organism_distribution(cleaned_2024, 2024)
+
+# Step 6: Comparison Between Years
+comparison_visualization <- function(comparison) {
+  comparison <- comparison %>%
+    mutate(difference = across(starts_with("binary"), sum, .names = "diff_{col}"))
+  
+  ggplot(comparison, aes(x = organism, y = difference)) +
+    geom_bar(stat = "identity", fill = "coral") +
+    coord_flip() +
+    labs(title = "Difference in Organism Counts Between Years",
+         x = "Organism", y = "Count Difference (2024 - 2023)") +
+    theme_minimal()
+}
+
+comparison_visualization(comparison)
+
+```
+
