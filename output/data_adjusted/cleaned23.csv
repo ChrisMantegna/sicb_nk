@@ -7,7 +7,6 @@
 "aggregating.anemone",0,0,3,2023
 "purple.encrusting.hydrocoral",0,0,0,2023
 "hydroid",0,0,0,2023
-"pacific.sea.nettle",0,0,0,2023
 "lions.mane",0,0,0,2023
 "moon_jelly",0,0,0,2023
 "egg_jelly",0,0,0,2023
@@ -15,6 +14,7 @@
 "nonsegmented_worm",15,1,0,2023
 "segmented_worm",73,16,5,2023
 "tubeworm",117,17,0,2023
+"other_worm",0,0,0,2023
 "chiton_lined",64,36,1,2023
 "chiton_mossy",17,39,14,2023
 "chiton_hairy",6,21,4,2023
@@ -22,12 +22,11 @@
 "limpet",132,721,371,2023
 "topsnail",98,48,14,2023
 "turban_snail",19,78,14,2023
-"margarite",0,0,0,2023
-"periwinkle",0,0,0,2023
+"sitka",0,0,0,2023
 "bittium",4,0,0,2023
 "wentletrap",0,0,0,2023
 "dogwinkle",10,31,0,2023
-"welk",32,53,11,2023
+"other_welk",32,53,11,2023
 "olive",0,0,0,2023
 "other_unknown_gastropoda",38,90,7,2023
 "sea_clown",2,0,0,2023

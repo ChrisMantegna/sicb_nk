@@ -62,6 +62,7 @@ cleaned24 <- clean_data(data24, 2024)
 ```
 
 ## adjust dfs for visualization
+## NOTE: cleaned up the naming of some catagories mannually
 ```{r}
 
 # rename your cleaned files back to data23 and data24 so you aren't constantly re-entering new file/ object names for each step, that's a surefire way to get confused.
@@ -78,6 +79,20 @@ presence_absence <- function(data23, data24) {
 }
 
 comparison <- presence_absence(data23, data24)
+
+# check for NA values since we went from 68 obs. in 2023 and 67 obs. in 2024 to a combined 73 obs, in the comparison. 
+# backfill NAs
+
+# replace NAs
+comparison <- comparison %>%
+  mutate(
+    across(c(L_2023, L_2024, M_2023, M_2024, U_2023, U_2024), ~ replace_na(., 9999)),
+    year_2024 = replace_na(year_2024, 2024),
+    year_2023 = replace_na(year_2023, 2023)
+  )
+
+# write out df 
+write.csv(comparison, "/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adjusted/comparison.csv", row.names = FALSE)
 
 ```
 
