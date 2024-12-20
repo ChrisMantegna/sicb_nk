@@ -2,26 +2,29 @@
 title: Yellow 2023-24 Exploratory Data Analysis
 ---
 
-```{r}
-
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Load packages
+# Load libraries
 ```{r}
 
 library(tidyverse)
+library(vegan)
+library(ggplot2)
+library(reader)
 
 ```
 
 # Load data
 ```{r}
 
-# figure out where you are
+# figure out where you are. you'll need to know so you can adjust the path in the data import lines below.
 getwd()
 
 # add data
-data_2023 <- readxl::read_excel("path_to_your_2023_file.xlsx")
-data_2024 <- read.csv("path_to_your_2024_file.csv")
+data23 <- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/data/yi2023_completeNK.csv")
+data24 <- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/data/yi2024total.csv")
 
 ```
 
@@ -30,8 +33,8 @@ data_2024 <- read.csv("path_to_your_2024_file.csv")
 ```{r}
 
 # fix column names
-colnames(data_2023) <- tolower(colnames(data_2023))
-colnames(data_2024) <- tolower(colnames(data_2024))
+colnames(data23) <- tolower(colnames(data23))
+colnames(data24) <- tolower(colnames(data24))
 
 # aggregate counts + pivot
 clean_data <- function(data, year) {
@@ -49,33 +52,45 @@ clean_data <- function(data, year) {
   return(data_cleaned)
 }
 
-# create new, cleaned df's
-cleaned_2023 <- clean_data(data_2023, 2023)
-cleaned_2024 <- clean_data(data_2024, 2024)
+# create cleaned df and write out to tables
+cleaned23 <- clean_data(data23, 2023)
+cleaned24 <- clean_data(data24, 2024)
 
-
-
+#write.csv(cleaned23, "/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adjusted/cleaned23.csv", row.names = FALSE)
+#write.csv(cleaned24, "/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adjusted/cleaned24.csv", row.names = FALSE)
 
 ```
 
-# EDA
-## adjust for visualization
+## adjust dfs for visualization
 ```{r}
 
-# Step 4: Combine for presence/absence comparison
-presence_absence <- function(data1, data2) {
-  data_combined <- data1 %>%
-    full_join(data2, by = "organism", suffix = c("_2023", "_2024")) %>%
+# rename your cleaned files back to data23 and data24 so you aren't constantly re-entering new file/ object names for each step, that's a surefire way to get confused.
+data23<- cleaned23
+data24<- cleaned24
+
+# combine them for a single file for comparisons
+presence_absence <- function(data23, data24) {
+  data_combined <- data23 %>%
+    full_join(data24, by = "organism", suffix = c("_2023", "_2024")) %>%
     mutate(across(ends_with("2023"), ~ ifelse(. > 0, 1, 0), .names = "binary_{col}"),
            across(ends_with("2024"), ~ ifelse(. > 0, 1, 0), .names = "binary_{col}"))
   return(data_combined)
 }
 
-comparison <- presence_absence(cleaned_2023, cleaned_2024)
-
-
+comparison <- presence_absence(data23, data24)
 
 ```
+
+# EDA
+## what we're going for
+```{r}
+
+# Number of taxa present for each year
+# Number of identified species for each year
+# Comparison of taxa and species between 2023 & 2024
+
+```
+
 
 ## visualize
 ```{r}
@@ -83,8 +98,8 @@ comparison <- presence_absence(cleaned_2023, cleaned_2024)
 # Step 5: Exploratory Analysis - Visualizations
 
 # Zone-level organism distributions
-plot_zone_distribution <- function(data, year) {
-  data_long <- data %>%
+plot_zone_distribution <- function(comparison, year) {
+  data_long <- comparison %>%
     pivot_longer(-c(organism, year), names_to = "zone", values_to = "count")
   
   ggplot(data_long, aes(x = zone, y = count, fill = zone)) +
@@ -94,12 +109,12 @@ plot_zone_distribution <- function(data, year) {
     theme_minimal()
 }
 
-plot_zone_distribution(cleaned_2023, 2023)
-plot_zone_distribution(cleaned_2024, 2024)
+plot_zone_distribution(data23, 2023)
+plot_zone_distribution(data24, 2024)
 
 # Organism distributions
-plot_organism_distribution <- function(data, year) {
-  data_long <- data %>%
+plot_organism_distribution <- function(comparison, year) {
+  data_long <- comparison %>%
     rowwise() %>%
     mutate(total_count = sum(c_across(-c(organism, year)), na.rm = TRUE))
   
@@ -111,15 +126,18 @@ plot_organism_distribution <- function(data, year) {
     theme_minimal()
 }
 
-plot_organism_distribution(cleaned_2023, 2023)
-plot_organism_distribution(cleaned_2024, 2024)
+plot_organism_distribution(data23, 2023)
+plot_organism_distribution(data24, 2024)
 
 # Step 6: Comparison Between Years
 comparison_visualization <- function(comparison) {
+  # Calculate the difference between 2024 and 2023 for each organism
   comparison <- comparison %>%
-    mutate(difference = across(starts_with("binary"), sum, .names = "diff_{col}"))
+    mutate(difference = binary_count_2024 - binary_count_2023) %>%
+    filter(!is.na(difference)) # Remove any rows where difference is NA
   
-  ggplot(comparison, aes(x = organism, y = difference)) +
+  # Create the visualization
+  ggplot(comparison, aes(x = reorder(organism, difference), y = difference)) +
     geom_bar(stat = "identity", fill = "coral") +
     coord_flip() +
     labs(title = "Difference in Organism Counts Between Years",
@@ -127,7 +145,9 @@ comparison_visualization <- function(comparison) {
     theme_minimal()
 }
 
+# Call the function with the corrected dataset
 comparison_visualization(comparison)
+
 
 ```
 
