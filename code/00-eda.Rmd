@@ -167,3 +167,13 @@ comparison_visualization(comparison)
 
 ```
 
+# next steps
+```{r}
+
+# alpha and beta diversity
+# species richness
+# t-test between years (total), or zonation (L and M), species level
+# for stats: PERMANOVA
+# box plots/ stacked bars (high level taxa distribution)
+```
+
