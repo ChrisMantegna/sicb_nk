@@ -3,9 +3,72 @@ output:
   pdf_document: default
   html_document: default
 ---
+
+```{bash}
+git config --global user.name "Noahk22"
+git config --global user.email "noahk22@uw.edu"
+```
+
 ```{r}
 library(tidyr)
 data <- read.csv("../data/pivoted_data.csv")
 print(data)
+
+data_long <- gather(data = data, key = "Sample", value = "Value", -ZONE, -Organism)
+
+
+print(data_long)
+```
+```{r}
+#Anova and plot comparing total counts of organisms grouped by zone(u,m,l) and seeing whwther or not they are significantly different from one another using a Tukey test
+
+library(ggplot2)
+library(dplyr)
+
+data$Total <- rowSums(data[, 3:10])
+zone_totals <- data %>% 
+  group_by(ZONE) %>% 
+  summarise(Total = sum(Total))
+
+ggplot(zone_totals, aes(x = ZONE, y = Total, fill = ZONE)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Counts of All Organisms by Zone", 
+       x = "Zone", 
+       y = "Total Count") +
+  theme_minimal()
+
+data_grouped <- data %>% group_by(ZONE) %>% summarise(Total = sum(Total))
+
+anova_result <- aov(formula = Total ~ data$ZONE, data = data)
+summary(anova_result)
+print(anova_result)
+
+TukeyHSD(anova_result)
+
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+
+
+data_long_1 <- data %>% 
+  pivot_longer(cols = 3:10, names_to = "Area", values_to = "Count") %>% 
+  group_by(ZONE, Organism) %>% 
+  summarise(Total = sum(Count), .groups = 'drop')
+
+kelp_data <- data_long_1 %>% filter(Organism == "KELP")
+
+ggplot(kelp_data, aes(x = ZONE, y = Total, fill = ZONE)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Total Counts of Kelp by Zone", 
+       x = "Zone", 
+       y = "Total Count") +
+  theme_minimal()
+
+kelp_data <- subset(data_long, Organism == "KELP")
+kelp_anova <- aov(Value ~ ZONE, data = kelp_data)
+kelp_anova_summary <- summary(kelp_anova)
+print(kelp_anova_summary)
+
 ```
 

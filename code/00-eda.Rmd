@@ -23,8 +23,10 @@ library(reader)
 getwd()
 
 # add data
-data23 <- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/data/yi2023_completeNK.csv")
-data24 <- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/data/yi2024total.csv")
+data23 <- read.csv("../data/yi2023_completeNK.csv")
+data24 <- read.csv("../data/yi2024total.csv")
+print(data23)
+print(data24)
 
 ```
 
@@ -92,7 +94,7 @@ comparison <- comparison %>%
   )
 
 # write out df 
-write.csv(comparison, "/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adjusted/comparison.csv", row.names = FALSE)
+write.csv(comparison, "../data_adjusted/comparison.csv", row.names = FALSE)
 
 ```
 
@@ -172,8 +174,211 @@ comparison_visualization(comparison)
 
 # alpha and beta diversity
 # species richness
-# t-test between years (total), or zonation (L and M), species level
+# t-test between years (total), and zonation (L and M), species level
 # for stats: PERMANOVA
 # box plots/ stacked bars (high level taxa distribution)
 ```
+
+```{r}
+print(data23)
+print(data24)
+
+plot_zone_distribution_limpet <- function(comparison, year) {
+  data_long <- comparison %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    filter(organism == "limpet") # Filter for limpets only
+  
+  ggplot(data_long, aes(x = zone, y = count, fill = zone)) +
+    geom_bar(stat = "identity") +
+    labs(title = paste("Limpet Counts by Zone -", year),
+         x = "Zone", y = "Total Counts") +
+    theme_minimal()
+}
+
+plot_zone_distribution_limpet(data23, 2023)
+plot_zone_distribution_limpet(data24, 2024)
+
+plot_zone_distribution_barnacles <- function(comparison, year) {
+  data_long <- comparison %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    filter(organism == "barnacles") # Filter for limpets only
+  
+  ggplot(data_long, aes(x = zone, y = count, fill = zone)) +
+    geom_bar(stat = "identity") +
+    labs(title = paste("Barnacle Counts by Zone -", year),
+         x = "Zone", y = "Total Counts") +
+    theme_minimal()
+}
+
+plot_zone_distribution_barnacles(data23, 2023)
+plot_zone_distribution_barnacles(data24, 2024)
+```
+```{r}
+#species_richness
+plot_species_count_by_zone <- function(data, year) {
+  # Calculate the number of species in each zone
+  data_species_count <- data %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    group_by(zone) %>%
+    summarise(species_count = sum(count > 0, na.rm = TRUE)) # Count species present in each zone
+  
+  # Create the bar plot
+  ggplot(data_species_count, aes(x = zone, y = species_count, fill = zone)) +
+    geom_bar(stat = "identity") +
+    labs(title = paste("Number of Species by Zone -", year),
+         x = "Zone", y = "Number of Species") +
+    theme_minimal()
+}
+
+# Plot for 2023 data
+plot_species_count_by_zone(data23, 2023)
+
+# Plot for 2024 data
+plot_species_count_by_zone(data24, 2024)
+```
+
+```{r}
+# Load required libraries
+library(tidyverse)
+
+
+
+# Add year column to differentiate datasets
+data23 <- data23 %>% mutate(year = 2023)
+data24 <- data24 %>% mutate(year = 2024)
+
+# Combine datasets for analysis
+combined_data <- bind_rows(data23, data24)
+
+# T-Test Between Years (Total) for Each Species
+perform_t_test_years <- function(data) {
+  t_test_results <- data %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    group_by(organism) %>%
+    summarise(
+      p_value = tryCatch(
+        t.test(count[year == 2023], count[year == 2024], var.equal = TRUE)$p.value,
+        error = function(e) NA
+      )
+    ) %>%
+    arrange(p_value)
+  return(t_test_results)
+}
+
+# T-Test Between Zones (L, M, U) for Each Species
+perform_t_test_zones <- function(data, year) {
+  t_test_results <- data %>%
+    filter(year == year) %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    group_by(organism) %>%
+    summarise(
+      p_value = tryCatch(
+        t.test(count[zone == "L"], count[zone == "M"], var.equal = TRUE)$p.value,
+        error = function(e) NA
+      )
+    ) %>%
+    arrange(p_value)
+  return(t_test_results)
+}
+
+# Run T-Test for Years
+t_test_years <- perform_t_test_years(combined_data)
+print("T-Test Results Between Years")
+print(t_test_years)
+
+# Run T-Test for Zones (2023 and 2024 separately)
+t_test_zones_2023 <- perform_t_test_zones(combined_data, 2023)
+t_test_zones_2024 <- perform_t_test_zones(combined_data, 2024)
+
+print("T-Test Results Between Zones for 2023")
+print(t_test_zones_2023)
+
+print("T-Test Results Between Zones for 2024")
+print(t_test_zones_2024)
+```
+
+
+```{r}
+library(tidyverse)
+library(vegan)
+
+# Load the datasets
+data23 <- read.csv("../data/yi2023_completeNK.csv")
+data24 <- read.csv("../data/yi2024total.csv")
+
+# Ensure column names are lowercase for consistency
+colnames(data23) <- tolower(colnames(data23))
+colnames(data24) <- tolower(colnames(data24))
+
+# Define a cleaning function for the data
+clean_data <- function(data, year) {
+  data_cleaned <- data %>%
+    group_by(zone) %>%
+    summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+    pivot_longer(-zone, names_to = "organism", values_to = "count") %>%
+    pivot_wider(names_from = "zone", values_from = "count", values_fill = 0) %>%
+    mutate(year = year) # Add year column
+  
+  return(data_cleaned)
+}
+
+# Apply the cleaning function
+cleaned23 <- clean_data(data23, 2023)
+cleaned24 <- clean_data(data24, 2024)
+
+# Combine datasets
+comparison <- bind_rows(cleaned23, cleaned24)
+
+# Check column names for debugging
+print("Column names in 'comparison':")
+print(colnames(comparison))
+
+# Filter for limpets only
+limpet_data <- comparison %>% filter(organism == "limpet")
+
+# Debugging: Check the structure of 'limpet_data'
+print("Structure of 'limpet_data':")
+str(limpet_data)
+
+# Transform the data to a long format for zones
+# Use debugging to identify correct column names
+limpet_long <- comparison %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    filter(organism == "limpet") # Filter for limpets only
+
+# Ensure no missing values
+limpet_long <- limpet_long %>% filter(complete.cases(.))
+
+# Prepare the species matrix
+species_matrix <- limpet_long %>%
+  pivot_wider(names_from = zone, values_from = count, values_fill = 0) %>%
+  select(-year) %>%
+  as.matrix()
+
+# Prepare metadata
+metadata <- limpet_long %>%
+  select(year, zone) %>% 
+  filter(complete.cases(.))
+
+# Ensure row counts match between species_matrix and metadata
+if (nrow(metadata) != nrow(species_matrix)) {
+  stop("Row counts of metadata and species_matrix do not match. Check data processing.")
+}
+
+# Compute Bray-Curtis distance matrix
+distance_matrix <- vegdist(species_matrix, method = "bray")
+
+# Perform PERMANOVA test
+permanova_result <- adonis2(
+  distance_matrix ~ year * zone,
+  data = metadata
+)
+
+# Display results
+print(permanova_result)
+```
+
+
+
+
 
