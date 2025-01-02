@@ -114,7 +114,7 @@ write.csv(comparison, "../data_adjusted/comparison.csv", row.names = FALSE)
 ## NOTE: organism distribution plots will need to be done in groups so that the barnacles and limpets/ other snails don't blow it out.
 
 ```{r}
-
+#Zone and Organism distribution Graphs
 # total count by tidal zone
 plot_zone_distribution <- function(comparison, year) {
   data_long <- comparison %>%
@@ -226,6 +226,7 @@ comparison_visualization(comparison)
 ```
 
 ```{r}
+#Species count comparison across zones for both years
 print(data23)
 print(data24)
 
@@ -300,7 +301,7 @@ plot_species_count_by_zone(data24, 2024)
 ```
 
 ```{r}
-# Load required libraries
+#T-test across years
 library(tidyverse)
 
 
@@ -352,6 +353,7 @@ print(t_test_years)
 
 
 ```{r}
+#Permanova Code
 library(tidyverse)
 library(vegan)
 
