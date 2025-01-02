@@ -1,5 +1,5 @@
 ---
-title: Yellow 2023-24 Exploratory Data Analysis
+title: "00.1: Organism EDA"
 ---
 
 ```{r setup, include=FALSE}
