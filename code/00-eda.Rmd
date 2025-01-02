@@ -130,22 +130,68 @@ plot_zone_distribution <- function(comparison, year) {
 plot_zone_distribution(data23, 2023)
 plot_zone_distribution(data24, 2024)
 
-# organism distribution
-plot_organism_distribution <- function(comparison, year) {
-  data_long <- comparison %>%
+library(ggplot2)
+library(dplyr)
+
+# Function to plot organism distributions based on thresholds
+plot_organism_distribution <- function(data, year, thresholds) {
+  data_long <- data %>%
     rowwise() %>%
-    mutate(total_count = sum(c_across(-c(organism, year)), na.rm = TRUE))
+    mutate(total_count = sum(c_across(-c(organism, year)), na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(total_count > 0)  # Exclude organisms with a total count of 0
   
-  ggplot(data_long, aes(x = reorder(organism, total_count), y = total_count)) +
+  # Split data into categories based on thresholds
+  data_1 <- data_long %>% filter(total_count > thresholds[[1]][1], total_count <= thresholds[[1]][2])
+  data_2 <- data_long %>% filter(total_count > thresholds[[2]][1], total_count <= thresholds[[2]][2])
+  data_3 <- data_long %>% filter(total_count > thresholds[[3]][1])  # No upper limit for the last category
+  
+  # Plot organisms in each category
+  plot_1 <- ggplot(data_1, aes(x = reorder(organism, total_count), y = total_count)) +
     geom_bar(stat = "identity", fill = "steelblue") +
     coord_flip() +
-    labs(title = paste("Organism Distribution -", year),
+    labs(title = paste("Organisms with Counts in Range", paste(thresholds[[1]], collapse = "-"), "-", year),
          x = "Organism", y = "Total Counts") +
     theme_minimal()
+  
+  plot_2 <- ggplot(data_2, aes(x = reorder(organism, total_count), y = total_count)) +
+    geom_bar(stat = "identity", fill = "darkorange") +
+    coord_flip() +
+    labs(title = paste("Organisms with Counts in Range", paste(thresholds[[2]], collapse = "-"), "-", year),
+         x = "Organism", y = "Total Counts") +
+    theme_minimal()
+  
+  plot_3 <- ggplot(data_3, aes(x = reorder(organism, total_count), y = total_count)) +
+    geom_bar(stat = "identity", fill = "green") +
+    coord_flip() +
+    labs(title = paste("Organisms with Counts >", thresholds[[3]][1], "-", year),
+         x = "Organism", y = "Total Counts") +
+    theme_minimal()
+  
+  return(list(category_1 = plot_1, category_2 = plot_2, category_3 = plot_3))
 }
 
-plot_organism_distribution(data23, 2023)
-plot_organism_distribution(data24, 2024)
+# Define thresholds for 2023 and 2024
+thresholds_2023 <- list(c(0, 30), c(31, 100), c(101, Inf))
+thresholds_2024 <- list(c(0, 60), c(61, 500), c(501, Inf))
+
+# Generate plots for 2023
+plots_2023 <- plot_organism_distribution(data23, 2023, thresholds_2023)
+
+# Generate plots for 2024
+plots_2024 <- plot_organism_distribution(data24, 2024, thresholds_2024)
+
+# Display the plots for 2023
+print("Plots for 2023:")
+print(plots_2023$category_1)  # Organisms with counts 1-50
+print(plots_2023$category_2)  # Organisms with counts 51-100
+print(plots_2023$category_3)  # Organisms with counts 101+
+
+# Display the plots for 2024
+print("Plots for 2024:")
+print(plots_2024$category_1)  # Organisms with counts 1-100
+print(plots_2024$category_2)  # Organisms with counts 101-500
+print(plots_2024$category_3)  # Organisms with counts 501+
 
 # 2023 - 2024 comparison
 comparison_visualization <- function(comparison) {
@@ -212,6 +258,22 @@ plot_zone_distribution_barnacles <- function(comparison, year) {
 
 plot_zone_distribution_barnacles(data23, 2023)
 plot_zone_distribution_barnacles(data24, 2024)
+
+
+plot_zone_distribution_anemone <- function(comparison, year) {
+  data_long <- comparison %>%
+    pivot_longer(-c(organism, year), names_to = "zone", values_to = "count") %>%
+    filter(organism == "anemone") # Filter for anemone's only
+  
+  ggplot(data_long, aes(x = zone, y = count, fill = zone)) +
+    geom_bar(stat = "identity") +
+    labs(title = paste("anemone Counts by Zone -", year),
+         x = "Zone", y = "Total Counts") +
+    theme_minimal()
+}
+
+plot_zone_distribution_anemone(data23, 2023)
+plot_zone_distribution_anemone(data24, 2024)
 ```
 ```{r}
 #species_richness
@@ -286,15 +348,6 @@ t_test_years <- perform_t_test_years(combined_data)
 print("T-Test Results Between Years")
 print(t_test_years)
 
-# Run T-Test for Zones (2023 and 2024 separately)
-t_test_zones_2023 <- perform_t_test_zones(combined_data, 2023)
-t_test_zones_2024 <- perform_t_test_zones(combined_data, 2024)
-
-print("T-Test Results Between Zones for 2023")
-print(t_test_zones_2023)
-
-print("T-Test Results Between Zones for 2024")
-print(t_test_zones_2024)
 ```
 
 
@@ -360,11 +413,6 @@ metadata <- limpet_long %>%
   select(year, zone) %>% 
   filter(complete.cases(.))
 
-# Ensure row counts match between species_matrix and metadata
-if (nrow(metadata) != nrow(species_matrix)) {
-  stop("Row counts of metadata and species_matrix do not match. Check data processing.")
-}
-
 # Compute Bray-Curtis distance matrix
 distance_matrix <- vegdist(species_matrix, method = "bray")
 
@@ -373,7 +421,7 @@ permanova_result <- adonis2(
   distance_matrix ~ year * zone,
   data = metadata
 )
-
+print(colnames(limpet_data))
 # Display results
 print(permanova_result)
 ```
