@@ -24,19 +24,342 @@ library(reader)
 getwd()
 
 # Note you'll need to change the file path to match where it is on your computer
-data23<- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/data/algae2023.csv")
-data24<- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/data/algae2024.csv")
+data23<- read.csv("../data/algae2023.csv")
+data24<- read.csv("../data/algae2024.csv")
 
 ```
 
 # Clean it up
 ## convert presence/ absence to numerical values we can use
-```{r}
 
+```{r}
 # replace 'P' with 1 and 'A' with 0
 data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) ifelse(x == "P", 1, 0))
 
 head(data)
+```
+
+```{r}
+
+convert_pa_to_numeric <- function(data) {
+  data <- data %>%
+    mutate(across(everything(), ~ case_when(
+      . == "P" ~ 1,
+      . == "A" ~ 0,
+      TRUE ~ as.numeric(.)  # Preserve numeric values or NA for other cases
+    )))
+  return(data)
+}
+
+colnames(data23)[colnames(data23) == "SECTION"] <- "section"
+
+# Apply the conversion function to both datasets
+data24_converted_2 <- convert_pa_to_numeric(data24)
+data23_converted_2 <- convert_pa_to_numeric(data23)
+
+# Save the cleaned datasets if needed
+write.csv(data24_converted_2, "algae2024_converted.csv", row.names = FALSE)
+write.csv(data23_converted_2, "algae2023_converted.csv", row.names = FALSE)
+
+print(data23_converted_2)
+
+print(data24_converted_2)
+
+```
+
+#Algae richness by section plot for 2023
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Function to calculate richness and plot by section
+plot_richness_by_section <- function(data, dataset_name) {
+  # Ensure numeric conversion for richness calculation
+  data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) {
+    as.numeric(as.character(x))
+  })
+  
+  # Add a column for species richness
+  data$richness <- rowSums(data[, 3:ncol(data)], na.rm = TRUE)
+  
+  # Summarize richness by section
+  richness_summary <- data %>%
+    group_by(section) %>%
+    summarise(averageRichness = mean(richness, na.rm = TRUE))
+  
+  # Create the plot
+  plot <- ggplot(richness_summary, aes(x = factor(section), y = averageRichness, fill = factor(section))) +
+    geom_bar(stat = "identity") +
+    labs(
+      title = paste("Species Richness by Section -", dataset_name),
+      x = "Section",
+      y = "Average Species Richness",
+      fill = "Section"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.position = "right"
+    )
+  
+  return(plot)
+}
+
+# Generate plots
+plot_2023_richness <- plot_richness_by_section(data23_converted, "2023")
+
+# Display plots
+print(plot_2023_richness)
+
+```
+```{r}
+#Algae richness by section plot for 2024
+
+library(ggplot2)
+library(dplyr)
+
+# Function to calculate richness and plot by section
+plot_richness_by_section <- function(data, dataset_name) {
+  # Ensure numeric conversion for richness calculation
+  data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) {
+    as.numeric(as.character(x))
+  })
+  
+  # Add a column for species richness
+  data$richness <- rowSums(data[, 3:ncol(data)], na.rm = TRUE)
+  
+  # Summarize richness by section
+  richness_summary <- data %>%
+    group_by(section) %>%
+    summarise(averageRichness = mean(richness, na.rm = TRUE))
+  
+  # Create the plot
+  plot <- ggplot(richness_summary, aes(x = factor(section), y = averageRichness, fill = factor(section))) +
+    geom_bar(stat = "identity") +
+    labs(
+      title = paste("Species Richness by Section -", dataset_name),
+      x = "Section",
+      y = "Average Species Richness",
+      fill = "Section"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.position = "right"
+    )
+  
+  return(plot)
+}
+
+# Generate plots
+plot_2024_richness <- plot_richness_by_section(data24_converted, "2024")
+
+# Display plots
+print(plot_2024_richness)
+
+```
+```{r}
+#Two-Sample T-test comparing section species richness between 2023 and 2024
+library(ggplot2)
+library(dplyr)
+
+# Function to calculate species richness
+calculate_richness <- function(data) {
+  data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) {
+    as.numeric(as.character(x))
+  })
+  data$richness <- rowSums(data[, 3:ncol(data)], na.rm = TRUE)
+  return(data)
+}
+
+# Apply the conversion and richness calculation to both datasets
+data23_converted_1 <- calculate_richness(data23_converted)
+data24_converted_1 <- calculate_richness(data24_converted)
+
+print(data23_converted_1)
+print(data24_converted_1)
+
+colnames(data23_converted_1)[colnames(data23_converted_1) == "SECTION"] <- "section"
+
+# Verify the change
+print(colnames(data23_converted_1))
+# Summarize richness by section for each dataset
+richness_summary_2023 <- data23_converted_1 %>%
+  group_by(section) %>%
+  summarise(averageRichness = mean(richness, na.rm = TRUE))
+
+richness_summary_2024 <- data24_converted_1 %>%
+  group_by(section) %>%
+  summarise(averageRichness = mean(richness, na.rm = TRUE))
+
+# Merge the summaries for comparison
+comparison_data <- merge(
+  richness_summary_2023 %>% rename(averageRichness_2023 = averageRichness),
+  richness_summary_2024 %>% rename(averageRichness_2024 = averageRichness),
+  by = "section"
+)
+
+# Perform two-sample t-tests for each section
+t_test_results <- comparison_data %>%
+  rowwise() %>%
+  mutate(
+    t_test = list(
+      t.test(
+        x = data23_converted %>% filter(section == section) %>% pull(richness),
+        y = data24_converted %>% filter(section == section) %>% pull(richness),
+        paired = FALSE
+      )
+    ),
+    p_value = t_test$p.value,
+    mean_diff = t_test$estimate[1] - t_test$estimate[2]
+  )
+
+# Display t-test results
+t_test_results <- t_test_results %>%
+  select(section, mean_diff, p_value)
+
+print("Two-Sample t-Test Results by Section:")
+print(t_test_results)
+
+# Visualize the differences (optional)
+ggplot(t_test_results, aes(x = factor(section), y = mean_diff, fill = factor(section))) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Difference in Species Richness by Section (2023 vs 2024)",
+    x = "Section",
+    y = "Mean Difference in Richness",
+    fill = "Section"
+  ) +
+  theme_minimal()
+```
+```{r}
+#Specic Algaes presnt in each section
+library(ggplot2)
+library(dplyr)
+
+# Function to plot algae types by section
+plot_algae_by_section <- function(data, dataset_name) {
+  # Ensure columns are numeric where necessary
+  data <- data %>%
+    mutate(across(where(is.character), as.numeric))  # Convert character data to numeric if needed
+
+  # Convert the data to long format for ggplot
+  data_long <- data %>%
+    pivot_longer(
+      cols = -section,  # Select all columns except SECTION
+      names_to = "algae_type",
+      values_to = "count"
+    )
+
+  # Summarize data for visualization
+  algae_summary <- data_long %>%
+    group_by(section, algae_type) %>%
+    summarise(total_count = sum(count, na.rm = TRUE), .groups = "drop")
+
+  # Create the plot
+  plot <- ggplot(algae_summary, aes(x = algae_type, y = total_count, fill = factor(section))) +
+    geom_bar(stat = "identity", position = "dodge") +  # Use dodge for grouped bars
+    labs(
+      title = paste("Distribution of Algae Types by Section -", dataset_name),
+      x = "Algae Type",
+      y = "Total Count",
+      fill = "Section"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for readability
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black")
+    )
+  
+  return(plot)
+}
+
+# Example datasets: Assuming you have `data23` and `data24`
+# Plot for 2023
+plot_2023 <- plot_algae_by_section(data23_converted_2, "2023")
+
+# Plot for 2024
+plot_2024 <- plot_algae_by_section(data24_converted_2, "2024")
+
+# Display the plots
+print(plot_2023)
+print(plot_2024)
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Function to plot algae types by section for specified columns
+plot_algae_by_section <- function(data, dataset_name, columns) {
+  # Ensure specified columns are numeric where necessary
+  data <- data %>%
+    mutate(across(all_of(columns), ~ as.numeric(as.character(.))))  # Convert specified columns to numeric
+  
+  # Select the required columns along with the 'section' column
+  data_selected <- data %>%
+    select(section, all_of(columns))
+  
+  # Convert the data to long format for ggplot
+  data_long <- data_selected %>%
+    pivot_longer(
+      cols = -section,  # Select all columns except 'section'
+      names_to = "algae_type",
+      values_to = "count"
+    )
+  
+  # Summarize data for visualization
+  algae_summary <- data_long %>%
+    group_by(section, algae_type) %>%
+    summarise(total_count = sum(count, na.rm = TRUE), .groups = "drop")
+  
+  # Create the plot
+  plot <- ggplot(algae_summary, aes(x = algae_type, y = total_count, fill = factor(section))) +
+    geom_bar(stat = "identity", position = "dodge") +  # Use dodge for grouped bars
+    labs(
+      title = paste("Distribution of Algae Types by Section -", dataset_name),
+      x = "Algae Type",
+      y = "Total Count",
+      fill = "Section"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for readability
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black")
+    )
+  
+  return(plot)
+}
+
+# Define column groups for 2023 and 2024
+columns_2023_group1 <- c("ROCKWEED", "ULVA", "TURFWEED", "SARGASSUM", "TURKISH_WASHCLOTH", "TURKISH_TOWEL", "IRRIDESCENT")
+columns_2023_group2 <- c("SUGAR", "CCA", "TAR", "OTHER_RED", "OTHER_GREEN", "OTHER_BROWN", "UNKNOWN_OTHER")
+
+columns_2024_group1 <- c("Sea.Lettuce", "Rockweed", "Sea.Moss", "Turkish.Towel", "Turkish.Washcloth", "Sea.Cauliflower", 
+                         "Witches.Hair", "Iridescent.Algae", "Green.Turfweed")
+columns_2024_group2 <- c("Brown.Turfweed", "Sargassum", "Tar.Spot.Algae", "Crustose.Coralline.Algae", 
+                         "Filamentous.Red.Algae", "Other.Green.Algae", "Other.Brown.Algae", "Other.Red.Algae")
+
+# Generate plots for 2023
+plot_2023_group1 <- plot_algae_by_section(data23_converted_2, "2023 - Group 1", columns_2023_group1)
+plot_2023_group2 <- plot_algae_by_section(data23_converted_2, "2023 - Group 2", columns_2023_group2)
+
+# Generate plots for 2024
+plot_2024_group1 <- plot_algae_by_section(data24_converted_2, "2024 - Group 1", columns_2024_group1)
+plot_2024_group2 <- plot_algae_by_section(data24_converted_2, "2024 - Group 2", columns_2024_group2)
+
+# Display the plots
+print(plot_2023_group1)
+print(plot_2023_group2)
+print(plot_2024_group1)
+print(plot_2024_group2)
 
 ```
 
@@ -60,14 +383,14 @@ colSums(is.na(data))
 
 library(dplyr)
 
-data <- data %>%
+data <- data23_converted %>%
   mutate(
-    section = trimws(section),
-    zonation = trimws(zonation)
+    section = trimws(SECTION),
+    zonation = trimws(ZONATION)
   )
 
 unique_combinations <- data %>%
-  distinct(section, zonation)
+  distinct(SECTION, ZONATION)
 
 print(unique_combinations)
 
@@ -75,11 +398,25 @@ print(unique_combinations)
 library(dplyr)
 
 zone_section_summary <- data %>%
-  group_by(section, zonation) %>%
+  group_by(SECTION, ZONATION) %>%
   summarise(across(where(is.numeric), sum))
 
 # check it out
 print(zone_section_summary)
+
+
+library(dplyr)
+
+data_1 <- data24_converted %>%
+  mutate(
+    section = trimws(section),
+    zonation = trimws(zone)
+  )
+
+unique_combinations <- data_1 %>%
+  distinct(section, zone)
+
+print(unique_combinations)
 
 ```
 
@@ -89,9 +426,18 @@ print(zone_section_summary)
 # add a column for species richness (sum of all algae presence per row)
 #data$richness <- rowSums(data[, 3:ncol(data)])
 
+data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) {
+  as.numeric(as.character(x))  # Convert factors/characters to numeric
+})
+
+# Add a column for species richness (sum of all algae presence per row)
+data$richness <- rowSums(data[, 3:ncol(data)], na.rm = TRUE)
+
+# Verify the new column
+print(head(data))
 # summarize richness by section
 richness_summary <- data %>%
-  group_by(section) %>%
+  group_by(SECTION) %>%
   summarise(averageRichness = mean(richness))
 
 # Create a bar plot for species richness
@@ -118,6 +464,55 @@ print(richness)
 
 #ggsave(filename= "/Users/cmantegna/Documents/GitHub/sicb_km/output/figures/algal_richness.png", plot=richness, width = 12, height = 10, dpi = 300)
 
+library(ggplot2)
+library(dplyr)
+
+# Function to calculate richness and plot by section
+plot_richness_by_section <- function(data, dataset_name) {
+  # Ensure numeric conversion for richness calculation
+  data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) {
+    as.numeric(as.character(x))
+  })
+  
+  # Add a column for species richness
+  data$richness <- rowSums(data[, 3:ncol(data)], na.rm = TRUE)
+  
+  # Summarize richness by section
+  richness_summary <- data %>%
+    group_by(SECTION) %>%
+    summarise(averageRichness = mean(richness, na.rm = TRUE))
+  
+  # Create the plot
+  plot <- ggplot(richness_summary, aes(x = factor(SECTION), y = averageRichness, fill = factor(SECTION))) +
+    geom_bar(stat = "identity") +
+    labs(
+      title = paste("Species Richness by Section -", dataset_name),
+      x = "Section",
+      y = "Average Species Richness",
+      fill = "Section"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.position = "right"
+    )
+  
+  return(plot)
+}
+
+# Load datasets
+data2023 <- read.csv("path_to_algae2023.csv")  # Replace with actual file path
+data2024 <- read.csv("path_to_algae2024.csv")  # Replace with actual file path
+
+# Generate plots
+plot_2023 <- plot_richness_by_section(data2023, "2023")
+plot_2024 <- plot_richness_by_section(data2024, "2024")
+
+# Display plots
+print(plot_2023)
+print(plot_2024)
 ```
 
 # Algal presence by section - cleaning up naming and plot colors
