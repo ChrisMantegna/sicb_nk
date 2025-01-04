@@ -1,0 +1,392 @@
+---
+title: "00.1: Algal EDA"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+
+library(dplyr)
+library(tidyverse)
+library(vegan)
+library(ggplot2)
+library(reader)
+
+```
+
+# Load Data
+```{r}
+
+# figure out where you are on your computer
+getwd()
+
+# Note you'll need to change the file path to match where it is on your computer
+data<- read.csv("/Users/cmantegna/Documents/GitHub/sicb_km/data/algae.csv")
+#data2<- read.csv("/Users/cmantegna/Documents/GitHub/sicb_km/output/data_adjusted/pivoted_data.csv")
+
+```
+
+# Clean it up
+## convert presence/ absence to numerical values we can use
+```{r}
+
+# replace 'P' with 1 and 'A' with 0
+data[, 3:ncol(data)] <- lapply(data[, 3:ncol(data)], function(x) ifelse(x == "P", 1, 0))
+
+head(data)
+
+```
+
+## check for empties and ensure section is a character/ factor
+```{r}
+
+# fix column names
+colnames(data) <- tolower(colnames(data))
+
+# make sections characters & check they really are characters
+data$section <- as.character(data$section)
+str(data)
+
+# check for missing values
+colSums(is.na(data))
+
+```
+
+## transform the df
+```{r}
+
+library(dplyr)
+
+data <- data %>%
+  mutate(
+    section = trimws(section),
+    zonation = trimws(zonation)
+  )
+
+unique_combinations <- data %>%
+  distinct(section, zonation)
+
+print(unique_combinations)
+
+# summarize by section & zone
+library(dplyr)
+
+zone_section_summary <- data %>%
+  group_by(section, zonation) %>%
+  summarise(across(where(is.numeric), sum))
+
+# check it out
+print(zone_section_summary)
+
+```
+
+# Species Richness
+```{r}
+
+# add a column for species richness (sum of all algae presence per row)
+#data$richness <- rowSums(data[, 3:ncol(data)])
+
+# summarize richness by section
+richness_summary <- data %>%
+  group_by(section) %>%
+  summarise(averageRichness = mean(richness))
+
+# Create a bar plot for species richness
+richness <- ggplot(richness_summary, aes(x = factor(section), y = averageRichness, fill = factor(section))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = custom_colors) +  # Apply the custom color palette
+  labs(
+    title = "Species Richness by Section",
+    x = "Section",
+    y = "Average Species Richness",
+    fill = "Section"  # Legend title
+  ) +
+  theme_minimal(base_size = 14) +  # Clean theme with larger font size
+  theme(
+    panel.grid = element_blank(),             # Remove gridlines
+    panel.border = element_blank(),           # No border around the plot
+    axis.line = element_line(color = "black"),  # Retain X and Y axes
+    legend.position = "right"                 # Position the legend to the right
+  )
+
+# Display the plot
+print(richness)
+
+
+#ggsave(filename= "/Users/cmantegna/Documents/GitHub/sicb_km/output/figures/algal_richness.png", plot=richness, width = 12, height = 10, dpi = 300)
+
+```
+
+# Algal presence by section - cleaning up naming and plot colors
+```{r}
+
+library(tidyr)
+library(ggplot2)
+
+# rename algae from the mix of scientific and common names to their common names
+colnames(data)[3:16] <- c(
+  "Rockweed", "Sea Lettuce","Turfweed", "Sargassum", "Turkish Washcloth", "Turkish Towel", "Iridescent Seaweed", "Sugar Kelp", "Crustose Coralline Algae", "Tar Spot Algae", "Other Red Algae", "Other Green Algae", "Other Brown Algae", "Unknown Algae")
+
+# create a named vector mapping algae to their group
+algae_group <- c(
+  "Rockweed" = "Green Algae", "Sea Lettuce" = "Green Algae", "Other Green Algae" = "Green Algae",
+  "Turfweed" = "Brown Algae", "Sargassum" = "Brown Algae", "Turkish Washcloth" = "Brown Algae", 
+  "Sugar Kelp" = "Brown Algae", "Other Brown Algae" = "Brown Algae",
+  "Turkish Towel" = "Red Algae", "Iridescent Seaweed" = "Red Algae", 
+  "Crustose Coralline Algae" = "Red Algae", "Tar Spot Algae" = "Red Algae", "Other Red Algae" = "Red Algae",
+  "Unknown Algae" = "Black"
+)
+
+# Define individual colors for each algae
+algae_colors <- c(
+  "Rockweed" = "#24693D",    # Dark green base color
+  "Sea Lettuce" = "#3C8A55", 
+  "Other Green Algae" = "#5AAD7A",  # Lighter shades of green
+  "Turfweed" = "#663000", 
+  "Sargassum" = "#855740", 
+  "Turkish Washcloth" = "#996136", 
+  "Sugar Kelp" = "#B88C74", 
+  "Other Brown Algae" = "#D4B4A2", 
+  "Turkish Towel" = "#990000", 
+  "Iridescent Seaweed" = "#CC3333", 
+  "Crustose Coralline Algae" = "#E06666", 
+  "Tar Spot Algae" = "#F29999", 
+  "Other Red Algae" = "#F7CCCC", 
+  "Unknown Algae" = "#000000"  # Black
+)
+
+# Reshape data to long format
+algae_long <- data %>%
+  pivot_longer(cols = 3:16, names_to = "Algae", values_to = "Presence") %>%
+  filter(Presence > 0)  # Exclude algae with no presence
+
+# Reorder levels of the Algae factor
+algae_long$Algae <- factor(
+  algae_long$Algae,
+  levels = c(
+    "Unknown Algae",                           # Black
+    "Turkish Towel", "Iridescent Seaweed", 
+    "Crustose Coralline Algae", "Tar Spot Algae", "Other Red Algae",  # Red
+    "Turfweed", "Sargassum", "Turkish Washcloth", 
+    "Sugar Kelp", "Other Brown Algae",         # Brown
+    "Rockweed", "Sea Lettuce", "Other Green Algae"  # Green
+  )
+)
+
+# Create the stacked bar plot
+algaeColor_ordered<- ggplot(algae_long, aes(x = factor(section), y = Presence, fill = Algae)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = algae_colors) +  # Apply individual algae colors
+  labs(
+    title = "Algal Presence by Section",
+    x = "Section",
+    y = "Presence",
+    fill = "Algae Type"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid = element_blank(),             # Remove gridlines
+    axis.line = element_line(color = "black"), # Retain X and Y axes
+    legend.position = "right",                # Position legend
+    legend.title = element_text(size = 12),   # Adjust legend title size
+    legend.text = element_text(size = 10)     # Adjust legend text size
+  )
+
+print(algaeColor_ordered)
+
+#ggsave(filename= "/Users/cmantegna/Documents/GitHub/sicb_km/output/figures/algaeColor_ordered.png", plot=algaeColor_ordered, width = 12, height = 10, dpi = 300)
+
+```
+
+
+# Algal presence by section
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# summarize algal presence by section
+algal_summary <- data %>%
+  group_by(section) %>%
+  summarise(across(where(is.numeric), sum)) %>%
+  pivot_longer(cols = -c(section,richness), names_to = "Algae", values_to = "Count")
+
+# stacked bar plot
+algae<- ggplot(algal_summary, aes(x = factor(section), y = Count, fill = Algae)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Algal Composition by Section",
+    x = "Section",
+    y = "Count of Presence",
+    fill = "Algae Type"
+  ) +
+  theme_minimal()
+
+#ggsave(filename= "/Users/cmantegna/Documents/GitHub/sicb_km/output/figures/algae_by_section.png", plot=algae, width = 12, height = 10, dpi = 300)
+
+```
+
+# Stats
+## Normality check
+```{r}
+
+# data is not normally distributed so we have to run a PERMANOVA instead of an ANOVA
+data %>%
+  group_by(section) %>%
+  summarise(p_value = shapiro.test(richness)$p.value)
+
+
+```
+
+## PERMANOVA
+### troubleshooting code for the matrix creation: lines 170-196
+```{r}
+
+# make section a factor
+data$section <- as.factor(data$section)
+
+# pull out the algae columns
+algal_data <- data[, 3:16]
+
+# Check for missing values
+sum(is.na(algal_data))
+
+# Remove rows with missing values (if necessary)
+algal_data <- na.omit(algal_data)
+
+# Check data type of each column
+str(algal_data)
+
+# Check for missing values by column
+colSums(is.na(algal_data))
+
+# Check for missing values by row
+rowSums(is.na(algal_data))
+
+# Check if all values are numeric and non-negative
+all(algal_data >= 0, na.rm = TRUE)
+
+# Convert non-numeric columns to numeric (if needed)
+#algal_data <- data[, 3:16]
+#algal_data[] <- lapply(algal_data, as.numeric)
+
+library(vegan)
+# since this distance matrix is sensitive to rows with 0s all the way across, we are going to figure out if that exists before trying to rerun the distance matrix
+
+zero_rows <- rowSums(algal_data) == 0
+
+# Count the number of such rows
+sum(zero_rows)
+
+# If needed, inspect these rows
+#data[zero_rows, ]
+
+# Remove rows with all zeros
+algal_data <- algal_data[!zero_rows, ]
+
+# compute a distance matrix (e.g., Jaccard or Bray-Curtis)
+distance_matrix <- vegdist(algal_data, method = "bray")
+
+# Subset data to match non-zero rows in algal_data
+non_zero_indices <- rowSums(data[, 3:16]) > 0  # Adjust column range as needed
+data <- data[non_zero_indices, ]
+
+# Check for negative values or missing entries in the distance matrix
+#distance_matrix[distance_matrix < 0]  # Negative values
+#sum(is.na(distance_matrix))           # Missing values
+
+
+# Run PERMANOVA
+permanova_result <- adonis2(distance_matrix ~ section, data = data, permutations = 999)
+
+# View the results
+print(permanova_result)
+
+```
+
+## posthoc for permanova is a pairwise test
+### troubleshoot this later
+```{r}
+
+library(devtools)
+#install.packages("devtools")
+devtools::install_github("pmartinezarbizu/pairwiseAdonis")
+library(pairwiseAdonis)
+
+
+```
+
+## NMDS to visualize which section(s) is driving the significant result
+```{r}
+
+library(vegan)
+
+# Perform NMDS on the distance matrix
+nmds_result <- metaMDS(vegdist(algal_data, method = "bray"), k = 2, trymax = 100)
+
+# Plot NMDS with sections as groups
+plot(nmds_result, type = "t")
+ordihull(nmds_result, groups = data$section, draw = "polygon", col = "blue", label = TRUE)
+
+
+```
+
+## NMDS plot cleaned up a bit
+```{r}
+
+library(vegan)
+library(ggplot2)
+library(ggforce) 
+
+# Extract NMDS scores
+nmds_scores <- as.data.frame(scores(nmds_result))
+nmds_scores$section <- data$section
+
+# Calculate convex hulls for each group
+hull_data <- nmds_scores %>%
+  group_by(section) %>%
+  slice(chull(NMDS1, NMDS2))  # Calculate convex hull points
+
+
+# Define custom colors for each group of sections
+custom_colors <- c(
+  "1" = "#00AACC", "2" = "#33E4FF", "3" = "#66f0ff",  # Palette 1: Sections 1–3
+  "4" = "#2ca02c", "5" = "#98df8a",                  # Palette 2: Sections 4–5
+  "6" = "#663000", "7" = "#996136", "8" = "#cc9b7a"  # Palette 3: Sections 6–8
+)
+
+
+# Plot NMDS with axes and custom colors
+algaeNMDS<- ggplot() +
+  # Add convex hulls for each section
+  geom_polygon(data = hull_data, aes(x = NMDS1, y = NMDS2, fill = section, group = section), alpha = 0.3) +
+  # Add points for each sample
+  geom_point(data = nmds_scores, aes(x = NMDS1, y = NMDS2, color = section), size = 3) +
+  # Apply custom color palettes
+  scale_fill_manual(values = custom_colors) +
+  scale_color_manual(values = custom_colors) +
+  # Aesthetic adjustments
+  labs(
+    title = "NMDS Plot of Algal Composition by Section",
+    x = "NMDS1",
+    y = "NMDS2",
+    fill = "Section",
+    color = "Section"
+  ) +
+  theme_minimal(base_size = 14) +  # Clean theme with larger font size
+  theme(
+    legend.position = "right",               # Keep legend on the right
+    panel.grid = element_blank(),            # Remove all gridlines
+    panel.border = element_rect(color = "black", fill = NA),  # Add border for axis
+    axis.line = element_line(color = "black")  # Add x and y axes
+  )
+
+
+ggsave(filename= "/Users/cmantegna/Documents/GitHub/sicb_km/output/figures/algaeNMDS.png", plot=algaeNMDS, width = 12, height = 10, dpi = 300)
+
+```
+
