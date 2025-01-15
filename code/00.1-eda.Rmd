@@ -24,8 +24,11 @@ library(reader)
 getwd()
 
 # Note you'll need to change the file path to match where it is on your computer
-data23<- read.csv("../data/algae2023.csv")
-data24<- read.csv("../data/algae2024.csv")
+
+#data23<- read.csv("../data/algae2023.csv")
+#data24<- read.csv("../data/algae2024.csv")
+data23<- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adjusted/algae2023_converted.csv")
+data24<- read.csv("/Users/cmantegna/Documents/GitHub/sicb_nk/output/data_adjusted/algae2024_converted.csv")
 
 ```
 
